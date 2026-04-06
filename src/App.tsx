@@ -81,14 +81,119 @@ import {
   AuditStatus, 
   Role, 
   Frequency, 
-  EvidenceRow 
+  EvidenceRow,
+  User as UserType
 } from './types';
 import { COMPLIANCE_CATEGORIES, COMPLIANCE_REQUIREMENTS } from './constants';
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
 
+function LoginPage({ onLogin }: { onLogin: (user: UserType) => void }) {
+  const [name, setName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [role, setRole] = React.useState<Role>('Maker');
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    const user: UserType = {
+      id: Math.random().toString(36).substr(2, 9),
+      name,
+      email,
+      role
+    };
+    onLogin(user);
+    toast.success(`Logged in as ${name} (${role})`);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md"
+      >
+        <Card className="border-none shadow-2xl">
+          <CardHeader className="space-y-1 text-center bg-indigo-600 text-white rounded-t-xl py-8">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white mb-4">
+              <ShieldCheck size={32} />
+            </div>
+            <CardTitle className="text-2xl font-bold">ComplianceHub</CardTitle>
+            <CardDescription className="text-indigo-100">
+              Enter your credentials to access the audit system
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-8">
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input 
+                  id="name" 
+                  placeholder="John Doe" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="bg-slate-50 border-slate-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="john@example.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-slate-50 border-slate-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Select Role</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setRole('Maker')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      role === 'Maker' 
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
+                        : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    <Plus size={24} className="mb-2" />
+                    <span className="text-xs font-bold uppercase">Maker</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('Checker')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      role === 'Checker' 
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
+                        : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    <CheckCircle2 size={24} className="mb-2" />
+                    <span className="text-xs font-bold uppercase">Checker</span>
+                  </button>
+                </div>
+              </div>
+              <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-base font-bold shadow-lg shadow-indigo-100">
+                Sign In
+              </Button>
+            </form>
+          </CardContent>
+          <CardFooter className="bg-slate-50 rounded-b-xl py-4 flex justify-center">
+            <p className="text-xs text-slate-500 font-medium">Compliance Management System v1.0</p>
+          </CardFooter>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [role, setRole] = useState<Role>('Maker');
+  const [user, setUser] = useState<UserType | null>(null);
   const [submissions, setSubmissions] = useState<AuditSubmission[]>([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedSubmission, setSelectedSubmission] = useState<AuditSubmission | null>(null);
@@ -99,24 +204,43 @@ export default function App() {
     date: format(new Date(), 'yyyy-MM-dd'),
     categoryId: '',
     frequency: 'Monthly',
-    maker: 'Maker User',
-    checker: 'Checker User',
     status: 'Draft',
     evidence: []
   });
 
   // Load from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('compliance_submissions');
-    if (saved) {
-      setSubmissions(JSON.parse(saved));
+    const savedUser = localStorage.getItem('compliance_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    const savedSubmissions = localStorage.getItem('compliance_submissions');
+    if (savedSubmissions) {
+      setSubmissions(JSON.parse(savedSubmissions));
     }
   }, []);
 
   // Save to localStorage
   useEffect(() => {
+    if (user) {
+      localStorage.setItem('compliance_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('compliance_user');
+    }
+  }, [user]);
+
+  useEffect(() => {
     localStorage.setItem('compliance_submissions', JSON.stringify(submissions));
   }, [submissions]);
+
+  const handleLogin = (newUser: UserType) => {
+    setUser(newUser);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    toast.info('Logged out successfully');
+  };
 
   const stats = useMemo(() => {
     const total = submissions.length;
@@ -162,10 +286,14 @@ export default function App() {
       return;
     }
 
+    if (!user) return;
+
     const newSubmission: AuditSubmission = {
       ...formData as AuditSubmission,
       id: Math.random().toString(36).substr(2, 9),
-      status: status
+      status: status,
+      maker: user.name,
+      checker: 'Checker User' // In a real app, this would be selected or assigned
     };
 
     setSubmissions([newSubmission, ...submissions]);
@@ -175,8 +303,6 @@ export default function App() {
       date: format(new Date(), 'yyyy-MM-dd'),
       categoryId: '',
       frequency: 'Monthly',
-      maker: 'Maker User',
-      checker: 'Checker User',
       status: 'Draft',
       evidence: []
     });
@@ -184,7 +310,7 @@ export default function App() {
 
   const handleReview = (id: string, status: 'Approved' | 'Rejected', comments: string) => {
     setSubmissions(submissions.map(s => 
-      s.id === id ? { ...s, status, checkerComments: comments } : s
+      s.id === id ? { ...s, status, checkerComments: comments, checker: user?.name || s.checker } : s
     ));
     setSelectedSubmission(null);
     toast.success(`Audit ${status.toLowerCase()} successfully`);
@@ -198,6 +324,15 @@ export default function App() {
       default: return <Badge variant="secondary">Draft</Badge>;
     }
   };
+
+  if (!user) {
+    return (
+      <>
+        <Toaster position="top-right" richColors />
+        <LoginPage onLogin={handleLogin} />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
@@ -217,30 +352,19 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 rounded-full bg-slate-100 p-1">
-              <button 
-                onClick={() => setRole('Maker')}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${role === 'Maker' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Maker
-              </button>
-              <button 
-                onClick={() => setRole('Checker')}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${role === 'Checker' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Checker
-              </button>
-            </div>
-            <div className="h-8 w-px bg-slate-200" />
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                {role === 'Maker' ? 'M' : 'C'}
+              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs uppercase">
+                {user.name.charAt(0)}
               </div>
               <div className="hidden sm:block">
-                <p className="text-xs font-bold leading-none">{role === 'Maker' ? 'Maker User' : 'Checker User'}</p>
-                <p className="text-[10px] text-slate-500 mt-1 uppercase font-semibold">{role}</p>
+                <p className="text-xs font-bold leading-none">{user.name}</p>
+                <p className="text-[10px] text-slate-500 mt-1 uppercase font-semibold">{user.role}</p>
               </div>
             </div>
+            <div className="h-8 w-px bg-slate-200" />
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-500 hover:text-rose-600">
+              Logout
+            </Button>
           </div>
         </div>
       </header>
@@ -261,7 +385,7 @@ export default function App() {
             </TabsList>
           </Tabs>
 
-          {role === 'Maker' && activeTab === 'submissions' && (
+          {user.role === 'Maker' && activeTab === 'submissions' && (
             <Button onClick={() => setIsFormOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100">
               <Plus size={18} className="mr-2" />
               New Audit Submission
@@ -636,7 +760,7 @@ export default function App() {
                 )}
 
                 {/* Checker Actions */}
-                {role === 'Checker' && selectedSubmission.status === 'Pending Review' && (
+                {user.role === 'Checker' && selectedSubmission.status === 'Pending Review' && (
                   <div className="space-y-4 pt-4 border-t border-slate-100">
                     <div className="space-y-2">
                       <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Reviewer Comments</Label>

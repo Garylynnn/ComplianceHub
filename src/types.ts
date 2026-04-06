@@ -35,3 +35,10 @@ export interface AuditSubmission {
 }
 
 export type Role = 'Maker' | 'Checker';
+
+export interface User {
+  id: string;
+  name: string;
+  role: Role;
+  email: string;
+}
