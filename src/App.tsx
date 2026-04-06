@@ -436,8 +436,8 @@ export default function App() {
 
       {/* Audit Submission Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xl">
-          <DialogHeader className="p-6 bg-indigo-600 text-white">
+        <DialogContent className="max-w-[95vw] md:max-w-6xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl">
+          <DialogHeader className="p-6 bg-indigo-600 text-white rounded-t-xl">
             <DialogTitle className="text-xl font-bold">New Audit Submission</DialogTitle>
             <DialogDescription className="text-indigo-100">
               Complete the compliance requirements and upload evidence for review.
@@ -496,8 +496,8 @@ export default function App() {
                     {formData.evidence?.length} Points to Audit
                   </Badge>
                 </div>
-                <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                  <Table>
+                <div className="rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+                  <Table className="min-w-[800px]">
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead className="w-[300px] font-bold">Requirement</TableHead>
@@ -550,7 +550,7 @@ export default function App() {
             )}
           </div>
 
-          <DialogFooter className="p-6 bg-slate-50 border-t flex flex-col sm:flex-row gap-3">
+          <DialogFooter className="p-6 bg-slate-50 border-t flex flex-col sm:flex-row gap-3 m-0 rounded-b-xl">
             <Button variant="ghost" onClick={() => setIsFormOpen(false)} className="font-bold">Cancel</Button>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => handleSubmit('Draft')} className="font-bold">Save as Draft</Button>
@@ -564,10 +564,10 @@ export default function App() {
 
       {/* Audit Review Dialog */}
       <Dialog open={!!selectedSubmission} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xl">
+        <DialogContent className="max-w-[95vw] md:max-w-6xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl">
           {selectedSubmission && (
             <>
-              <DialogHeader className={`p-6 text-white ${
+              <DialogHeader className={`p-6 text-white rounded-t-xl ${
                 selectedSubmission.status === 'Approved' ? 'bg-emerald-600' : 
                 selectedSubmission.status === 'Rejected' ? 'bg-rose-600' : 'bg-indigo-600'
               }`}>
@@ -594,8 +594,8 @@ export default function App() {
                 {/* Evidence Table (Read Only) */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">Evidence Provided</h3>
-                  <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                    <Table>
+                  <div className="rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+                    <Table className="min-w-[800px]">
                       <TableHeader className="bg-slate-50">
                         <TableRow>
                           <TableHead className="w-[300px] font-bold">Requirement</TableHead>
@@ -677,7 +677,7 @@ export default function App() {
                 )}
               </div>
 
-              <DialogFooter className="p-6 bg-slate-50 border-t">
+              <DialogFooter className="p-6 bg-slate-50 border-t m-0 rounded-b-xl">
                 <Button variant="ghost" onClick={() => setSelectedSubmission(null)} className="font-bold">Close</Button>
               </DialogFooter>
             </>
