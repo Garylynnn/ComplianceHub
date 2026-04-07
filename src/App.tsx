@@ -19,7 +19,9 @@ import {
   Eye,
   ArrowLeft,
   Filter,
-  Search
+  Search,
+  Settings,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -82,31 +84,54 @@ import {
   Role, 
   Frequency, 
   EvidenceRow,
-  User as UserType
+  User as UserType,
+  AuditLog
 } from './types';
 import { COMPLIANCE_CATEGORIES, COMPLIANCE_REQUIREMENTS } from './constants';
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
 
-function LoginPage({ onLogin }: { onLogin: (user: UserType) => void }) {
-  const [name, setName] = React.useState('');
-  const [email, setEmail] = React.useState('');
-  const [role, setRole] = React.useState<Role>('Maker');
+function LoginPage({ onLogin }: { onLogin: (user: UserType, token: string) => void }) {
+  const [isRegister, setIsRegister] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<Role>('Maker');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) {
-      toast.error('Please fill in all fields');
+    if (!email || !password || (isRegister && !name)) {
+      toast.error('Please fill in all required fields');
       return;
     }
-    const user: UserType = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      email,
-      role
-    };
-    onLogin(user);
-    toast.success(`Logged in as ${name} (${role})`);
+
+    setLoading(true);
+    try {
+      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+      const body = isRegister ? { name, email, password, role } : { email, password };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      localStorage.setItem('token', data.token);
+      onLogin(data.user, data.token);
+      toast.success(isRegister ? 'Account created successfully!' : `Welcome back, ${data.user.name}!`);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -123,21 +148,24 @@ function LoginPage({ onLogin }: { onLogin: (user: UserType) => void }) {
             </div>
             <CardTitle className="text-2xl font-bold">ComplianceHub</CardTitle>
             <CardDescription className="text-indigo-100">
-              Enter your credentials to access the audit system
+              {isRegister ? 'Create your secure audit account' : 'Sign in to access the audit system'}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-8">
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
-                  placeholder="John Doe" 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-slate-50 border-slate-200"
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {isRegister && (
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input 
+                    id="name" 
+                    placeholder="John Doe" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="bg-slate-50 border-slate-200"
+                    required
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input 
@@ -147,44 +175,87 @@ function LoginPage({ onLogin }: { onLogin: (user: UserType) => void }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-slate-50 border-slate-200"
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label>Select Role</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setRole('Maker')}
-                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                      role === 'Maker' 
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
-                        : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
-                    }`}
-                  >
-                    <Plus size={24} className="mb-2" />
-                    <span className="text-xs font-bold uppercase">Maker</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('Checker')}
-                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                      role === 'Checker' 
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
-                        : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
-                    }`}
-                  >
-                    <CheckCircle2 size={24} className="mb-2" />
-                    <span className="text-xs font-bold uppercase">Checker</span>
-                  </button>
-                </div>
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-slate-50 border-slate-200"
+                  required
+                />
               </div>
-              <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-base font-bold shadow-lg shadow-indigo-100">
-                Sign In
+
+              {isRegister && (
+                <div className="space-y-2 pt-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Select Role</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setRole('Maker')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                        role === 'Maker' 
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
+                          : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
+                      }`}
+                    >
+                      <Plus size={20} className="mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Maker</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('Checker')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                        role === 'Checker' 
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
+                          : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
+                      }`}
+                    >
+                      <CheckCircle2 size={20} className="mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Checker</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('Admin')}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                        role === 'Admin' 
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
+                          : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
+                      }`}
+                    >
+                      <ShieldCheck size={20} className="mb-1" />
+                      <span className="text-[10px] font-bold uppercase">Admin</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              <Button 
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-base font-bold shadow-lg shadow-indigo-100 mt-4"
+                disabled={loading}
+              >
+                {loading ? "Processing..." : (isRegister ? "Create Account" : "Sign In")}
               </Button>
+              
+              <div className="text-center pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsRegister(!isRegister)}
+                  className="text-sm text-indigo-600 hover:underline font-medium"
+                >
+                  {isRegister ? "Already have an account? Sign In" : "Don't have an account? Register"}
+                </button>
+              </div>
             </form>
           </CardContent>
           <CardFooter className="bg-slate-50 rounded-b-xl py-4 flex justify-center">
-            <p className="text-xs text-slate-500 font-medium">Compliance Management System v1.0</p>
+            <p className="text-xs text-slate-500 font-medium">Compliance Management System v2.1 (Email Auth)</p>
           </CardFooter>
         </Card>
       </motion.div>
@@ -194,10 +265,15 @@ function LoginPage({ onLogin }: { onLogin: (user: UserType) => void }) {
 
 export default function App() {
   const [user, setUser] = useState<UserType | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [submissions, setSubmissions] = useState<AuditSubmission[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedSubmission, setSelectedSubmission] = useState<AuditSubmission | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<AuditSubmission>>({
@@ -208,38 +284,117 @@ export default function App() {
     evidence: []
   });
 
-  // Load from localStorage
+  // Verify Auth State on load
   useEffect(() => {
-    const savedUser = localStorage.getItem('compliance_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    async function verifyAuth() {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        try {
+          const response = await fetch('/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${storedToken}` }
+          });
+          const data = await response.json();
+          if (response.ok) {
+            setUser(data.user);
+            setToken(storedToken);
+          } else {
+            localStorage.removeItem('token');
+            setToken(null);
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('Auth verification failed:', error);
+          localStorage.removeItem('token');
+          setToken(null);
+          setUser(null);
+        }
+      }
+      setIsAuthReady(true);
     }
-    const savedSubmissions = localStorage.getItem('compliance_submissions');
-    if (savedSubmissions) {
-      setSubmissions(JSON.parse(savedSubmissions));
-    }
+    verifyAuth();
   }, []);
 
-  // Save to localStorage
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('compliance_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('compliance_user');
+  // Fetch Submissions
+  const fetchSubmissions = async () => {
+    if (!token) return;
+    try {
+      const response = await fetch('/api/submissions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSubmissions(data);
+      } else {
+        toast.error(data.error || 'Failed to fetch submissions');
+      }
+    } catch (error) {
+      console.error('Fetch submissions failed:', error);
     }
-  }, [user]);
-
-  useEffect(() => {
-    localStorage.setItem('compliance_submissions', JSON.stringify(submissions));
-  }, [submissions]);
-
-  const handleLogin = (newUser: UserType) => {
-    setUser(newUser);
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    toast.info('Logged out successfully');
+  const fetchAuditLogs = async () => {
+    if (!token || (user?.role !== 'Checker' && user?.role !== 'Admin')) return;
+    try {
+      const response = await fetch('/api/audit-logs', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setAuditLogs(data);
+      }
+    } catch (error) {
+      console.error('Fetch audit logs failed:', error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    if (!token || user?.role !== 'Admin') return;
+    try {
+      const response = await fetch('/api/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setUsers(data);
+      }
+    } catch (error) {
+      console.error('Fetch users failed:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthReady && user && token) {
+      fetchSubmissions();
+      if (user.role === 'Checker' || user.role === 'Admin') {
+        fetchAuditLogs();
+      }
+      if (user.role === 'Admin') {
+        fetchUsers();
+      }
+    }
+  }, [isAuthReady, user, token]);
+
+  const handleLogin = (newUser: UserType, newToken: string) => {
+    setUser(newUser);
+    setToken(newToken);
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+    } catch (error) {
+      console.error('Logout logging failed:', error);
+    } finally {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+      toast.info('Logged out successfully');
+    }
   };
 
   const stats = useMemo(() => {
@@ -280,40 +435,99 @@ export default function App() {
     setFormData({ ...formData, evidence: newEvidence });
   };
 
-  const handleSubmit = (status: AuditStatus) => {
+  const handleFileUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size exceeds 5MB limit");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      const newEvidence = formData.evidence?.map(row => 
+        row.id === id ? { ...row, fileAttachment: base64String } : row
+      );
+      setFormData({ ...formData, evidence: newEvidence });
+      toast.success(`File "${file.name}" uploaded successfully`);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (status: AuditStatus) => {
     if (!formData.categoryId) {
       toast.error('Please select a category');
       return;
     }
 
-    if (!user) return;
+    if (!user || !token) return;
 
-    const newSubmission: AuditSubmission = {
-      ...formData as AuditSubmission,
-      id: Math.random().toString(36).substr(2, 9),
-      status: status,
-      maker: user.name,
-      checker: 'Checker User' // In a real app, this would be selected or assigned
-    };
+    try {
+      const response = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          status
+        }),
+      });
 
-    setSubmissions([newSubmission, ...submissions]);
-    setIsFormOpen(false);
-    toast.success(status === 'Pending Review' ? 'Audit submitted for review' : 'Draft saved');
-    setFormData({
-      date: format(new Date(), 'yyyy-MM-dd'),
-      categoryId: '',
-      frequency: 'Monthly',
-      status: 'Draft',
-      evidence: []
-    });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit audit');
+      }
+
+      setIsFormOpen(false);
+      toast.success(status === 'Pending Review' ? 'Audit submitted for review' : 'Draft saved');
+      setFormData({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        categoryId: '',
+        frequency: 'Monthly',
+        status: 'Draft',
+        evidence: []
+      });
+      fetchSubmissions();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message);
+    }
   };
 
-  const handleReview = (id: string, status: 'Approved' | 'Rejected', comments: string) => {
-    setSubmissions(submissions.map(s => 
-      s.id === id ? { ...s, status, checkerComments: comments, checker: user?.name || s.checker } : s
-    ));
-    setSelectedSubmission(null);
-    toast.success(`Audit ${status.toLowerCase()} successfully`);
+  const handleReview = async (id: string, status: 'Approved' | 'Rejected', comments: string) => {
+    if (!user || !token) return;
+
+    try {
+      const response = await fetch(`/api/submissions/${id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          status,
+          checkerComments: comments
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to review audit');
+      }
+
+      setSelectedSubmission(null);
+      toast.success(`Audit ${status.toLowerCase()} successfully`);
+      fetchSubmissions();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message);
+    }
   };
 
   const getStatusBadge = (status: AuditStatus) => {
@@ -381,6 +595,22 @@ export default function App() {
               <TabsTrigger value="submissions" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">
                 <FileText size={16} className="mr-2" />
                 Submissions
+              </TabsTrigger>
+              {(user.role === 'Checker' || user.role === 'Admin') && (
+                <TabsTrigger value="logs" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">
+                  <ShieldCheck size={16} className="mr-2" />
+                  Audit Logs
+                </TabsTrigger>
+              )}
+              {user.role === 'Admin' && (
+                <TabsTrigger value="users" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">
+                  <Users size={16} className="mr-2" />
+                  Users
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="settings" className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">
+                <Settings size={16} className="mr-2" />
+                Settings
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -474,7 +704,7 @@ export default function App() {
                 </Card>
               )}
             </motion.div>
-          ) : (
+          ) : activeTab === 'submissions' ? (
             <motion.div 
               key="submissions"
               initial={{ opacity: 0, y: 20 }}
@@ -511,46 +741,284 @@ export default function App() {
                         <TableHead className="text-right font-bold">Action</TableHead>
                       </TableRow>
                     </TableHeader>
+                        <TableBody>
+                          {submissions.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                                No submissions found. Start by creating a new audit.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            submissions.map((sub) => (
+                              <TableRow key={sub.id} className="group hover:bg-slate-50/50 transition-colors">
+                                <TableCell className="font-medium">{sub.date}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-slate-700">
+                                      {COMPLIANCE_CATEGORIES.find(c => c.id === sub.categoryId)?.name}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">ID: {sub.id}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="font-medium">{sub.frequency}</Badge>
+                                </TableCell>
+                                <TableCell className="text-slate-600 text-sm">{sub.makerName}</TableCell>
+                                <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                    onClick={() => setSelectedSubmission(sub)}
+                                  >
+                                    <Eye size={16} className="mr-2" />
+                                    View
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : activeTab === 'logs' ? (
+            <motion.div 
+              key="logs"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card className="border-none shadow-sm overflow-hidden">
+                <CardHeader className="bg-white border-b">
+                  <CardTitle className="text-base font-bold">System Audit Logs</CardTitle>
+                  <CardDescription>ISO 27001 compliant immutable activity tracking</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-slate-50/50">
+                      <TableRow>
+                        <TableHead className="font-bold">Timestamp</TableHead>
+                        <TableHead className="font-bold">User</TableHead>
+                        <TableHead className="font-bold">Action</TableHead>
+                        <TableHead className="font-bold">Resource</TableHead>
+                        <TableHead className="font-bold">Details</TableHead>
+                      </TableRow>
+                    </TableHeader>
                     <TableBody>
-                      {submissions.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="h-32 text-center text-slate-500">
-                            No submissions found. Start by creating a new audit.
+                      {auditLogs.map((log) => (
+                        <TableRow key={log.id} className="text-xs">
+                          <TableCell className="text-slate-500 font-mono">
+                            {format(new Date(log.timestamp), 'MMM dd, HH:mm:ss')}
+                          </TableCell>
+                          <TableCell className="font-medium">{log.userName}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold">
+                              {log.action.replace('_', ' ')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-500">
+                            {log.resourceType}: {log.resourceId}
+                          </TableCell>
+                          <TableCell className="max-w-[300px] truncate" title={log.details}>
+                            {log.details}
                           </TableCell>
                         </TableRow>
-                      ) : (
-                        submissions.map((sub) => (
-                          <TableRow key={sub.id} className="group hover:bg-slate-50/50 transition-colors">
-                            <TableCell className="font-medium">{sub.date}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-slate-700">
-                                  {COMPLIANCE_CATEGORIES.find(c => c.id === sub.categoryId)?.name}
-                                </span>
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">ID: {sub.id}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="font-medium">{sub.frequency}</Badge>
-                            </TableCell>
-                            <TableCell className="text-slate-600 text-sm">{sub.maker}</TableCell>
-                            <TableCell>{getStatusBadge(sub.status)}</TableCell>
-                            <TableCell className="text-right">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                                onClick={() => setSelectedSubmission(sub)}
-                              >
-                                <Eye size={16} className="mr-2" />
-                                View
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
+                      ))}
                     </TableBody>
                   </Table>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : activeTab === 'users' ? (
+            <motion.div 
+              key="users"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card className="border-none shadow-sm overflow-hidden">
+                <CardHeader className="bg-white border-b flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold">User Management</CardTitle>
+                    <CardDescription>Manage system access and roles</CardDescription>
+                  </div>
+                  <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                        <Plus size={16} className="mr-2" />
+                        Create User
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create New User</DialogTitle>
+                        <DialogDescription>Add a new user to the system with a specific role.</DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const form = e.target as HTMLFormElement;
+                        const name = (form.elements.namedItem('name') as HTMLInputElement).value;
+                        const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+                        const password = (form.elements.namedItem('password') as HTMLInputElement).value;
+                        const role = (form.elements.namedItem('role') as HTMLSelectElement).value;
+
+                        try {
+                          const response = await fetch('/api/users', {
+                            method: 'POST',
+                            headers: { 
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ name, email, password, role })
+                          });
+                          const data = await response.json();
+                          if (response.ok) {
+                            toast.success('User created successfully');
+                            setIsUserDialogOpen(false);
+                            fetchUsers();
+                          } else {
+                            toast.error(data.error || 'Failed to create user');
+                          }
+                        } catch (error) {
+                          toast.error('An error occurred');
+                        }
+                      }} className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name">Full Name</Label>
+                          <Input id="name" name="name" placeholder="John Doe" required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Email Address</Label>
+                          <Input id="email" name="email" type="email" placeholder="john@example.com" required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="password">Initial Password</Label>
+                          <Input id="password" name="password" type="password" required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="role">System Role</Label>
+                          <Select name="role" defaultValue="Maker">
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Maker">Maker (Submitter)</SelectItem>
+                              <SelectItem value="Checker">Checker (Reviewer)</SelectItem>
+                              <SelectItem value="Admin">Administrator</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">
+                            Create User Account
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-slate-50/50">
+                      <TableRow>
+                        <TableHead className="font-bold">Name</TableHead>
+                        <TableHead className="font-bold">Email</TableHead>
+                        <TableHead className="font-bold">Role</TableHead>
+                        <TableHead className="font-bold">Joined</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((u) => (
+                        <TableRow key={u.uid}>
+                          <TableCell className="font-medium">{u.name}</TableCell>
+                          <TableCell>{u.email}</TableCell>
+                          <TableCell>
+                            <Badge className={
+                              u.role === 'Admin' ? 'bg-rose-100 text-rose-600' :
+                              u.role === 'Checker' ? 'bg-indigo-100 text-indigo-600' :
+                              'bg-slate-100 text-slate-600'
+                            }>
+                              {u.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-500 text-xs">
+                            {format(new Date(u.createdAt), 'MMM dd, yyyy')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="settings"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-2xl mx-auto"
+            >
+              <Card className="border-none shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold">Account Settings</CardTitle>
+                  <CardDescription>Update your profile and security preferences</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Change Password</h3>
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.target as HTMLFormElement;
+                      const currentPassword = (form.elements.namedItem('currentPassword') as HTMLInputElement).value;
+                      const newPassword = (form.elements.namedItem('newPassword') as HTMLInputElement).value;
+                      const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value;
+
+                      if (newPassword !== confirmPassword) {
+                        toast.error('New passwords do not match');
+                        return;
+                      }
+
+                      try {
+                        const response = await fetch('/api/auth/change-password', {
+                          method: 'POST',
+                          headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: JSON.stringify({ currentPassword, newPassword })
+                        });
+                        const data = await response.json();
+                        if (response.ok) {
+                          toast.success('Password updated successfully');
+                          form.reset();
+                        } else {
+                          toast.error(data.error || 'Failed to update password');
+                        }
+                      } catch (error) {
+                        toast.error('An error occurred');
+                      }
+                    }} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">Current Password</Label>
+                        <Input id="currentPassword" name="currentPassword" type="password" required className="bg-slate-50" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <Input id="newPassword" name="newPassword" type="password" required className="bg-slate-50" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                        <Input id="confirmPassword" name="confirmPassword" type="password" required className="bg-slate-50" />
+                      </div>
+                      <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+                        Update Password
+                      </Button>
+                    </form>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -642,12 +1110,45 @@ export default function App() {
                               value={row.textResponse}
                               onChange={e => handleEvidenceChange(row.id, 'textResponse', e.target.value)}
                             />
-                            <div className="flex items-center gap-2">
-                              <Button variant="outline" size="sm" className="h-8 text-[10px] uppercase font-bold tracking-wider">
-                                <Upload size={12} className="mr-1.5" />
-                                Upload File
-                              </Button>
-                              <span className="text-[10px] text-slate-400 font-medium">PDF, PNG, JPG (Max 5MB)</span>
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-8 text-[10px] uppercase font-bold tracking-wider relative overflow-hidden"
+                                  onClick={() => document.getElementById(`file-upload-${row.id}`)?.click()}
+                                >
+                                  <Upload size={12} className="mr-1.5" />
+                                  {row.fileAttachment ? "Change File" : "Upload File"}
+                                  <input 
+                                    id={`file-upload-${row.id}`}
+                                    type="file" 
+                                    className="hidden" 
+                                    accept="image/*,application/pdf"
+                                    onChange={(e) => handleFileUpload(row.id, e)}
+                                  />
+                                </Button>
+                                <span className="text-[10px] text-slate-400 font-medium">PDF, PNG, JPG (Max 5MB)</span>
+                              </div>
+                              {row.fileAttachment && (
+                                <div className="flex items-center gap-2 p-2 bg-indigo-50 rounded-lg border border-indigo-100">
+                                  <CheckCircle2 size={14} className="text-indigo-600" />
+                                  <span className="text-[10px] font-bold text-indigo-700 uppercase">File Attached</span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="xs" 
+                                    className="h-5 text-[10px] text-rose-600 hover:text-rose-700 hover:bg-rose-50 ml-auto"
+                                    onClick={() => {
+                                      const newEvidence = formData.evidence?.map(r => 
+                                        r.id === row.id ? { ...r, fileAttachment: undefined } : r
+                                      );
+                                      setFormData({ ...formData, evidence: newEvidence });
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="align-top">
@@ -699,7 +1200,7 @@ export default function App() {
                   <div>
                     <DialogTitle className="text-xl font-bold">Audit Review: {COMPLIANCE_CATEGORIES.find(c => c.id === selectedSubmission.categoryId)?.name}</DialogTitle>
                     <DialogDescription className="text-white/80">
-                      Submitted by {selectedSubmission.maker} on {selectedSubmission.date}
+                      Submitted by {selectedSubmission.makerName} on {selectedSubmission.date}
                     </DialogDescription>
                   </div>
                   {getStatusBadge(selectedSubmission.status)}
@@ -711,8 +1212,8 @@ export default function App() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
                   <DetailItem label="Submission ID" value={selectedSubmission.id} />
                   <DetailItem label="Frequency" value={selectedSubmission.frequency} />
-                  <DetailItem label="Maker" value={selectedSubmission.maker} />
-                  <DetailItem label="Checker" value={selectedSubmission.checker} />
+                  <DetailItem label="Maker" value={selectedSubmission.makerName} />
+                  <DetailItem label="Checker" value={selectedSubmission.checkerName || 'Not Assigned'} />
                 </div>
 
                 {/* Evidence Table (Read Only) */}
@@ -734,7 +1235,19 @@ export default function App() {
                             <TableCell className="align-top">
                               <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{row.textResponse || 'No response provided'}</p>
                               {row.fileAttachment && (
-                                <Button variant="link" size="sm" className="px-0 h-auto text-indigo-600 font-bold text-xs mt-2">
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="px-0 h-auto text-indigo-600 font-bold text-xs mt-2"
+                                  onClick={() => {
+                                    const newWindow = window.open();
+                                    if (newWindow) {
+                                      newWindow.document.write(`<iframe src="${row.fileAttachment}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                    } else {
+                                      toast.error("Pop-up blocked. Please allow pop-ups to view attachments.");
+                                    }
+                                  }}
+                                >
                                   View Attachment
                                 </Button>
                               )}
@@ -768,6 +1281,7 @@ export default function App() {
                         id="checker-comments"
                         placeholder="Provide feedback for approval or rejection..." 
                         className="min-h-[100px] bg-slate-50 border-slate-200 focus:ring-indigo-500"
+                        defaultValue={selectedSubmission.checkerComments}
                       />
                     </div>
                     <div className="flex gap-3 justify-end">

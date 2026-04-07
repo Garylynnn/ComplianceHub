@@ -27,18 +27,34 @@ export interface AuditSubmission {
   date: string;
   categoryId: string;
   frequency: Frequency;
-  maker: string;
-  checker: string;
+  makerId: string;
+  makerName: string;
+  checkerId?: string;
+  checkerName?: string;
   status: AuditStatus;
   evidence: EvidenceRow[];
   checkerComments?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export type Role = 'Maker' | 'Checker';
+export type Role = 'Maker' | 'Checker' | 'Admin';
 
 export interface User {
-  id: string;
+  uid: string;
   name: string;
   role: Role;
   email: string;
+  createdAt: string;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  action: string;
+  resourceId: string;
+  resourceType: string;
+  details: string;
 }
