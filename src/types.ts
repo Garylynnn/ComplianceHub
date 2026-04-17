@@ -21,7 +21,7 @@ export interface EvidenceRow {
   textResponse: string;
   fileAttachment?: string;
   remarks: string;
-  status?: 'Pass' | 'Fail' | 'N/A';
+  status?: 'Approved' | 'Rejected' | 'N/A';
   maker?: string;
   checker?: string;
   checkerRemarks?: string;

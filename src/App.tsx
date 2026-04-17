@@ -1262,97 +1262,117 @@ export default function App() {
                     <Table className="min-w-[800px]">
                       <TableHeader className="bg-slate-50">
                         <TableRow>
-                          <TableHead className="w-[300px] font-bold">Requirement</TableHead>
-                          <TableHead className="w-[150px] font-bold">Owner (M/C)</TableHead>
-                          <TableHead className="font-bold">Maker Response</TableHead>
-                          <TableHead className="font-bold">Remarks</TableHead>
-                          <TableHead className="w-[180px] font-bold">Reviewer Action</TableHead>
+                          <TableHead className="w-[280px] font-bold">Requirement</TableHead>
+                          <TableHead className="w-[140px] font-bold text-center">Owner (M/C)</TableHead>
+                          <TableHead className="w-[250px] font-bold">Maker Response</TableHead>
+                          <TableHead className="w-[150px] font-bold">Maker Remarks</TableHead>
+                          <TableHead className="w-[180px] font-bold text-center">Approval Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedSubmission.evidence.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell className="align-top font-medium text-slate-700">{row.requirementDescription}</TableCell>
-                            <TableCell className="align-top">
-                              <div className="space-y-1">
+                          <TableRow key={row.id} className="group hover:bg-slate-50 transition-colors">
+                            <TableCell className="align-top font-medium text-slate-700 py-4">{row.requirementDescription}</TableCell>
+                            <TableCell className="align-top py-4">
+                              <div className="flex flex-col items-center gap-1.5">
                                 {row.maker && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] px-1 h-4">M</Badge>
+                                  <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded border border-indigo-100 shadow-sm w-full">
+                                    <Badge className="bg-indigo-600 text-white border-0 text-[8px] px-1 h-3 min-w-[14px] flex justify-center">M</Badge>
                                     <span className="text-[10px] font-bold text-slate-600 truncate">{row.maker}</span>
                                   </div>
                                 )}
                                 {row.checker && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Badge className="bg-slate-50 text-slate-600 border-slate-200 text-[9px] px-1 h-4">C</Badge>
+                                  <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-sm w-full">
+                                    <Badge className="bg-slate-400 text-white border-0 text-[8px] px-1 h-3 min-w-[14px] flex justify-center">C</Badge>
                                     <span className="text-[10px] font-bold text-slate-500 truncate">{row.checker}</span>
                                   </div>
                                 )}
-                                {!row.maker && !row.checker && <span className="text-[10px] text-slate-400">Not Assigned</span>}
                               </div>
                             </TableCell>
-                            <TableCell className="align-top">
-                              <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{row.textResponse || 'No response provided'}</p>
-                              {row.fileAttachment && (
-                                <Button 
-                                  variant="link" 
-                                  size="sm" 
-                                  className="px-0 h-auto text-indigo-600 font-bold text-xs mt-2"
-                                  onClick={() => {
-                                    const newWindow = window.open();
-                                    if (newWindow) {
-                                      newWindow.document.write(`<iframe src="${row.fileAttachment}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                                    } else {
-                                      toast.error("Pop-up blocked. Please allow pop-ups to view attachments.");
-                                    }
-                                  }}
-                                >
-                                  View Attachment
-                                </Button>
-                              )}
+                            <TableCell className="align-top py-4">
+                              <div className="space-y-2">
+                                <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{row.textResponse || 'No response provided'}</p>
+                                {row.fileAttachment && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-8 text-indigo-600 font-bold text-[10px] border-indigo-100 hover:bg-indigo-50"
+                                    onClick={() => {
+                                      const newWindow = window.open();
+                                      if (newWindow) {
+                                        newWindow.document.write(`<iframe src="${row.fileAttachment}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                      } else {
+                                        toast.error("Pop-up blocked. Please allow pop-ups to view attachments.");
+                                      }
+                                    }}
+                                  >
+                                    <Eye size={12} className="mr-1.5" /> View Attachment
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
-                            <TableCell className="align-top text-sm text-slate-500 italic">{row.remarks || '-'}</TableCell>
-                            <TableCell className="align-top">
+                            <TableCell className="align-top py-4">
+                              <p className="text-xs text-slate-500 italic leading-relaxed">{row.remarks || '-'}</p>
+                            </TableCell>
+                            <TableCell className="align-top py-4">
                               {user.role === 'Checker' && selectedSubmission.status === 'Pending Review' ? (
-                                <div className="space-y-2">
-                                  <div className="flex gap-2">
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-2 gap-2">
                                     <Button 
-                                      size="xs" 
-                                      variant={row.status === 'Pass' ? 'default' : 'outline'}
-                                      className={`h-7 px-2 text-[10px] font-bold transition-all ${row.status === 'Pass' ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' : 'text-slate-400 border-slate-200 hover:border-emerald-200 hover:text-emerald-600'}`}
-                                      onClick={() => updateReviewRow(row.id, { status: 'Pass' })}
+                                      size="sm"
+                                      variant={row.status === 'Approved' ? 'default' : 'outline'}
+                                      className={`h-8 font-bold text-[11px] transition-all shadow-sm ${
+                                        row.status === 'Approved' 
+                                          ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' 
+                                          : 'text-slate-400 border-slate-200 hover:border-emerald-200 hover:text-emerald-600 bg-white'
+                                      }`}
+                                      onClick={() => updateReviewRow(row.id, { status: 'Approved' })}
                                     >
-                                      <Check size={12} className="mr-1" /> Pass
+                                      <CheckCircle2 size={14} className="mr-1.5" /> Approve
                                     </Button>
                                     <Button 
-                                      size="xs" 
-                                      variant={row.status === 'Fail' ? 'destructive' : 'outline'}
-                                      className={`h-7 px-2 text-[10px] font-bold transition-all ${row.status === 'Fail' ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700' : 'text-slate-400 border-slate-200 hover:border-rose-200 hover:text-rose-600'}`}
-                                      onClick={() => updateReviewRow(row.id, { status: 'Fail' })}
+                                      size="sm" 
+                                      variant={row.status === 'Rejected' ? 'destructive' : 'outline'}
+                                      className={`h-8 font-bold text-[11px] transition-all shadow-sm ${
+                                        row.status === 'Rejected' 
+                                          ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700' 
+                                          : 'text-slate-400 border-slate-200 hover:border-rose-200 hover:text-rose-600 bg-white'
+                                      }`}
+                                      onClick={() => updateReviewRow(row.id, { status: 'Rejected' })}
                                     >
-                                      <X size={12} className="mr-1" /> Fail
+                                      <XCircle size={14} className="mr-1.5" /> Reject
                                     </Button>
                                   </div>
                                   <Input 
-                                    placeholder="Reviewer remarks..." 
-                                    className="text-[10px] h-7 bg-white border-slate-200 focus:ring-1 focus:ring-indigo-500"
+                                    className="h-8 text-[11px] bg-white border-slate-200 shadow-inner focus:ring-1 focus:ring-indigo-500"
+                                    placeholder="Add feedback..."
                                     value={row.checkerRemarks || ''}
                                     onChange={(e) => updateReviewRow(row.id, { checkerRemarks: e.target.value })}
                                   />
                                 </div>
                               ) : (
-                                <div className="space-y-1">
+                                <div className="space-y-2">
                                   {row.status ? (
-                                    <Badge className={`text-[10px] font-bold uppercase tracking-wider ${
-                                      row.status === 'Pass' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-rose-100 text-rose-700 border-rose-200'
+                                    <Badge className={`w-full justify-center py-1 text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                                      row.status === 'Approved' 
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                        : 'bg-rose-50 text-rose-700 border-rose-200'
                                     }`}>
-                                      {row.status === 'Pass' ? <Check size={10} className="mr-1 inline" /> : <X size={10} className="mr-1 inline" />}
+                                      {row.status === 'Approved' ? <Check size={12} className="mr-1.5" /> : <X size={12} className="mr-1.5" />}
                                       {row.status}
                                     </Badge>
                                   ) : (
-                                    <span className="text-[10px] text-slate-400 italic">Not reviewed</span>
+                                    <div className="flex items-center justify-center gap-2 py-1 px-3 bg-slate-100 rounded text-[10px] text-slate-400 font-bold uppercase tracking-widest border border-slate-200">
+                                      <Clock size={12} /> Pending Review
+                                    </div>
                                   )}
                                   {row.checkerRemarks && (
-                                    <p className="text-[10px] text-slate-500 italic leading-snug">"{row.checkerRemarks}"</p>
+                                    <div className="p-2 bg-slate-50 rounded border border-slate-100 shadow-inner">
+                                      <p className="text-[10px] text-slate-500 italic leading-relaxed">
+                                        <span className="font-bold text-slate-400 mr-1 opacity-50">Reviewer:</span>
+                                        "{row.checkerRemarks}"
+                                      </p>
+                                    </div>
                                   )}
                                 </div>
                               )}
