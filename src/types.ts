@@ -24,6 +24,7 @@ export interface EvidenceRow {
   status?: 'Pass' | 'Fail' | 'N/A';
   maker?: string;
   checker?: string;
+  checkerRemarks?: string;
 }
 
 export interface AuditSubmission {

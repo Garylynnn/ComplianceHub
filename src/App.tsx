@@ -9,6 +9,8 @@ import {
   FileText, 
   CheckCircle2, 
   XCircle, 
+  Check,
+  X,
   Clock, 
   Plus, 
   User, 
@@ -498,7 +500,7 @@ export default function App() {
     }
   };
 
-  const handleReview = async (id: string, status: 'Approved' | 'Rejected', comments: string) => {
+  const handleReview = async (id: string, status: 'Approved' | 'Rejected', comments: string, updatedEvidence?: EvidenceRow[]) => {
     if (!user || !token) return;
 
     try {
@@ -510,7 +512,8 @@ export default function App() {
         },
         body: JSON.stringify({
           status,
-          checkerComments: comments
+          checkerComments: comments,
+          evidence: updatedEvidence
         }),
       });
 
@@ -527,6 +530,14 @@ export default function App() {
       console.error(error);
       toast.error(error.message);
     }
+  };
+
+  const updateReviewRow = (rowId: string, updates: Partial<EvidenceRow>) => {
+    if (!selectedSubmission) return;
+    const newEvidence = selectedSubmission.evidence.map(row => 
+      row.id === rowId ? { ...row, ...updates } : row
+    );
+    setSelectedSubmission({ ...selectedSubmission, evidence: newEvidence });
   };
 
   const getStatusBadge = (status: AuditStatus) => {
@@ -1255,6 +1266,7 @@ export default function App() {
                           <TableHead className="w-[150px] font-bold">Owner (M/C)</TableHead>
                           <TableHead className="font-bold">Maker Response</TableHead>
                           <TableHead className="font-bold">Remarks</TableHead>
+                          <TableHead className="w-[180px] font-bold">Reviewer Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1299,6 +1311,52 @@ export default function App() {
                               )}
                             </TableCell>
                             <TableCell className="align-top text-sm text-slate-500 italic">{row.remarks || '-'}</TableCell>
+                            <TableCell className="align-top">
+                              {user.role === 'Checker' && selectedSubmission.status === 'Pending Review' ? (
+                                <div className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <Button 
+                                      size="xs" 
+                                      variant={row.status === 'Pass' ? 'default' : 'outline'}
+                                      className={`h-7 px-2 text-[10px] font-bold transition-all ${row.status === 'Pass' ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' : 'text-slate-400 border-slate-200 hover:border-emerald-200 hover:text-emerald-600'}`}
+                                      onClick={() => updateReviewRow(row.id, { status: 'Pass' })}
+                                    >
+                                      <Check size={12} className="mr-1" /> Pass
+                                    </Button>
+                                    <Button 
+                                      size="xs" 
+                                      variant={row.status === 'Fail' ? 'destructive' : 'outline'}
+                                      className={`h-7 px-2 text-[10px] font-bold transition-all ${row.status === 'Fail' ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700' : 'text-slate-400 border-slate-200 hover:border-rose-200 hover:text-rose-600'}`}
+                                      onClick={() => updateReviewRow(row.id, { status: 'Fail' })}
+                                    >
+                                      <X size={12} className="mr-1" /> Fail
+                                    </Button>
+                                  </div>
+                                  <Input 
+                                    placeholder="Reviewer remarks..." 
+                                    className="text-[10px] h-7 bg-white border-slate-200 focus:ring-1 focus:ring-indigo-500"
+                                    value={row.checkerRemarks || ''}
+                                    onChange={(e) => updateReviewRow(row.id, { checkerRemarks: e.target.value })}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  {row.status ? (
+                                    <Badge className={`text-[10px] font-bold uppercase tracking-wider ${
+                                      row.status === 'Pass' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-rose-100 text-rose-700 border-rose-200'
+                                    }`}>
+                                      {row.status === 'Pass' ? <Check size={10} className="mr-1 inline" /> : <X size={10} className="mr-1 inline" />}
+                                      {row.status}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 italic">Not reviewed</span>
+                                  )}
+                                  {row.checkerRemarks && (
+                                    <p className="text-[10px] text-slate-500 italic leading-snug">"{row.checkerRemarks}"</p>
+                                  )}
+                                </div>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1340,7 +1398,7 @@ export default function App() {
                             toast.error('Comments are mandatory for rejection');
                             return;
                           }
-                          handleReview(selectedSubmission.id, 'Rejected', comments);
+                          handleReview(selectedSubmission.id, 'Rejected', comments, selectedSubmission.evidence);
                         }}
                       >
                         <XCircle size={18} className="mr-2" />
@@ -1350,7 +1408,12 @@ export default function App() {
                         className="bg-emerald-600 hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-100"
                         onClick={() => {
                           const comments = (document.getElementById('checker-comments') as HTMLTextAreaElement).value;
-                          handleReview(selectedSubmission.id, 'Approved', comments);
+                          const allReviewed = selectedSubmission.evidence.every(r => r.status);
+                          if (!allReviewed) {
+                            toast.error('Please review all points (Pass/Fail) before approval');
+                            return;
+                          }
+                          handleReview(selectedSubmission.id, 'Approved', comments || 'All points verified.', selectedSubmission.evidence);
                         }}
                       >
                         <CheckCircle2 size={18} className="mr-2" />

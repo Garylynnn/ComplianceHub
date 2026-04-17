@@ -245,14 +245,21 @@ async function startServer() {
 
   app.patch('/api/submissions/:id', authenticateToken, (req: any, res) => {
     const { id } = req.params;
-    const { status, checkerComments } = req.body;
+    const { status, checkerComments, evidence } = req.body;
     const { uid, name, role } = req.user;
 
     try {
       const now = new Date().toISOString();
       if (role === 'Checker' || role === 'Admin') {
-        const stmt = db.prepare('UPDATE submissions SET status = ?, checkerComments = ?, checkerId = ?, checkerName = ?, updatedAt = ? WHERE id = ?');
-        stmt.run(status, checkerComments, uid, name, now, id);
+        let query = 'UPDATE submissions SET status = ?, checkerComments = ?, checkerId = ?, checkerName = ?, updatedAt = ?';
+        let params = [status, checkerComments, uid, name, now];
+        if (evidence) {
+          query += ', evidence = ?';
+          params.push(JSON.stringify(evidence));
+        }
+        query += ' WHERE id = ?';
+        params.push(id);
+        db.prepare(query).run(...params);
       } else {
         const stmt = db.prepare('UPDATE submissions SET status = ?, updatedAt = ? WHERE id = ? AND makerId = ?');
         stmt.run(status, now, id, uid);
