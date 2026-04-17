@@ -249,16 +249,6 @@ function LoginPage({ onLogin }: { onLogin: (user: UserType, token: string) => vo
               >
                 {loading ? "Processing..." : (isRegister ? "Create Account" : "Sign In")}
               </Button>
-              
-              <div className="text-center pt-2">
-                <button 
-                  type="button"
-                  onClick={() => setIsRegister(!isRegister)}
-                  className="text-sm text-indigo-600 hover:underline font-medium"
-                >
-                  {isRegister ? "Already have an account? Sign In" : "Don't have an account? Register"}
-                </button>
-              </div>
             </form>
           </CardContent>
           <CardFooter className="bg-slate-50 rounded-b-xl py-4 flex justify-center">
@@ -430,7 +420,9 @@ export default function App() {
       id: Math.random().toString(36).substr(2, 9),
       requirementDescription: req.description,
       textResponse: '',
-      remarks: ''
+      remarks: '',
+      maker: req.maker,
+      checker: req.checker
     }));
     setFormData({ ...formData, categoryId: val, evidence });
   };
@@ -1100,6 +1092,7 @@ export default function App() {
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead className="w-[300px] font-bold">Requirement</TableHead>
+                        <TableHead className="w-[150px] font-bold">Owner (M/C)</TableHead>
                         <TableHead className="font-bold">Response / Evidence</TableHead>
                         <TableHead className="font-bold">Remarks</TableHead>
                       </TableRow>
@@ -1109,6 +1102,23 @@ export default function App() {
                         <TableRow key={row.id}>
                           <TableCell className="align-top">
                             <p className="text-sm font-medium text-slate-700 leading-relaxed">{row.requirementDescription}</p>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="space-y-1">
+                              {row.maker && (
+                                <div className="flex items-center gap-1.5">
+                                  <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] px-1 h-4">M</Badge>
+                                  <span className="text-[10px] font-bold text-slate-600 truncate">{row.maker}</span>
+                                </div>
+                              )}
+                              {row.checker && (
+                                <div className="flex items-center gap-1.5">
+                                  <Badge className="bg-slate-50 text-slate-600 border-slate-200 text-[9px] px-1 h-4">C</Badge>
+                                  <span className="text-[10px] font-bold text-slate-500 truncate">{row.checker}</span>
+                                </div>
+                              )}
+                              {!row.maker && !row.checker && <span className="text-[10px] text-slate-400">Not Assigned</span>}
+                            </div>
                           </TableCell>
                           <TableCell className="align-top space-y-3">
                             <Textarea 
@@ -1231,6 +1241,7 @@ export default function App() {
                       <TableHeader className="bg-slate-50">
                         <TableRow>
                           <TableHead className="w-[300px] font-bold">Requirement</TableHead>
+                          <TableHead className="w-[150px] font-bold">Owner (M/C)</TableHead>
                           <TableHead className="font-bold">Maker Response</TableHead>
                           <TableHead className="font-bold">Remarks</TableHead>
                         </TableRow>
@@ -1239,6 +1250,23 @@ export default function App() {
                         {selectedSubmission.evidence.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell className="align-top font-medium text-slate-700">{row.requirementDescription}</TableCell>
+                            <TableCell className="align-top">
+                              <div className="space-y-1">
+                                {row.maker && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] px-1 h-4">M</Badge>
+                                    <span className="text-[10px] font-bold text-slate-600 truncate">{row.maker}</span>
+                                  </div>
+                                )}
+                                {row.checker && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge className="bg-slate-50 text-slate-600 border-slate-200 text-[9px] px-1 h-4">C</Badge>
+                                    <span className="text-[10px] font-bold text-slate-500 truncate">{row.checker}</span>
+                                  </div>
+                                )}
+                                {!row.maker && !row.checker && <span className="text-[10px] text-slate-400">Not Assigned</span>}
+                              </div>
+                            </TableCell>
                             <TableCell className="align-top">
                               <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{row.textResponse || 'No response provided'}</p>
                               {row.fileAttachment && (

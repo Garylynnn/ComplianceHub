@@ -11,6 +11,8 @@ export interface ComplianceRequirement {
   id: string;
   categoryId: string;
   description: string;
+  maker?: string;
+  checker?: string;
 }
 
 export interface EvidenceRow {
@@ -20,6 +22,8 @@ export interface EvidenceRow {
   fileAttachment?: string;
   remarks: string;
   status?: 'Pass' | 'Fail' | 'N/A';
+  maker?: string;
+  checker?: string;
 }
 
 export interface AuditSubmission {

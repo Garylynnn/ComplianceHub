@@ -12,9 +12,14 @@ export const COMPLIANCE_CATEGORIES: ComplianceCategory[] = [
 
 export const COMPLIANCE_REQUIREMENTS: ComplianceRequirement[] = [
   // User Access Review
-  { id: 'uar-1', categoryId: 'uar', description: 'Evidence of 6-month access history review.' },
-  { id: 'uar-2', categoryId: 'uar', description: 'Evidence of 1-year authorization/revocation history.' },
-  { id: 'uar-3', categoryId: 'uar', description: 'Verification of privileged account access.' },
+  { id: 'uar-1', categoryId: 'uar', description: 'Sophos: Admin role lists and MFA settings.', maker: 'Surya.K', checker: 'Shruthi.sb' },
+  { id: 'uar-2', categoryId: 'uar', description: 'ZKBio: Biometric personnel admin rights and device privileges.', maker: 'Ajith.kumar.thala', checker: 'Surya.k' },
+  { id: 'uar-3', categoryId: 'uar', description: 'Salt-Stack: external_auth configs and master access logs.', maker: 'Gani', checker: 'Linekar' },
+  { id: 'uar-4', categoryId: 'uar', description: 'FreeIPA: HBAC (Host Based Access Control) policies and active user lists.' },
+  { id: 'uar-5', categoryId: 'uar', description: 'Ruijie: Cloud sub-account management and SSID auth settings.', maker: 'fatah.khan', checker: 'Vinod.S' },
+  { id: 'uar-6', categoryId: 'uar', description: 'GLPI: User profiles (Technician/Admin) and account status.', maker: 'Rakshith', checker: 'Fatah.khan' },
+  { id: 'uar-7', categoryId: 'uar', description: 'NetBird: Peer group access control policies and IdP integration.', maker: 'Fatah', checker: 'Gani' },
+  { id: 'uar-8', categoryId: 'uar', description: 'Pritunl: VPN user lists and "Two-Step Authentication" enforcement.', maker: 'Gani', checker: 'Linekar' },
   
   // Patch Management
   { id: 'pm-1', categoryId: 'pm', description: 'Gitlab links for latest patch deployments.' },
