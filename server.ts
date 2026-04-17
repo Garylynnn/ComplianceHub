@@ -94,6 +94,7 @@ async function startServer() {
 
   // Auth Routes
   app.post('/api/auth/register', async (req, res) => {
+    console.log('Register request received for:', req.body.email);
     const { name, email, password, role } = req.body;
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -118,6 +119,7 @@ async function startServer() {
   });
 
   app.post('/api/auth/login', async (req, res) => {
+    console.log('Login attempt for:', req.body.email);
     const { email, password } = req.body;
     try {
       const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;

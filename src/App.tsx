@@ -117,10 +117,17 @@ function LoginPage({ onLogin }: { onLogin: (user: UserType, token: string) => vo
         body: JSON.stringify(body),
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text || `Server error: ${response.status}`);
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
+        throw new Error(data?.error || 'Authentication failed');
       }
 
       localStorage.setItem('token', data.token);
