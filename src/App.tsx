@@ -1117,6 +1117,7 @@ export default function App() {
                         <TableHead className="w-[150px] font-bold">Owner (M/C)</TableHead>
                         <TableHead className="font-bold">Response / Evidence</TableHead>
                         <TableHead className="font-bold">Remarks</TableHead>
+                        <TableHead className="w-[140px] font-bold text-center">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1193,10 +1194,34 @@ export default function App() {
                           <TableCell className="align-top">
                             <Input 
                               placeholder="Additional notes..." 
-                              className="text-sm bg-white border-slate-200 focus:ring-indigo-500"
+                              className={`text-sm bg-white border-slate-200 focus:ring-indigo-500 ${row.status === 'Pending Review' || row.status === 'Approved' ? 'opacity-60' : ''}`}
                               value={row.remarks}
                               onChange={e => handleEvidenceChange(row.id, 'remarks', e.target.value)}
+                              disabled={row.status === 'Pending Review' || row.status === 'Approved'}
                             />
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="space-y-2">
+                              {row.status === 'Pending Review' || row.status === 'Approved' ? (
+                                <Badge className={`w-full justify-center py-1.5 text-[9px] font-black tracking-widest uppercase border ${
+                                  row.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                                }`}>
+                                  {row.status === 'Approved' ? <CheckCircle2 size={10} className="mr-1" /> : <Clock size={10} className="mr-1" />}
+                                  {row.status}
+                                </Badge>
+                              ) : (
+                                <Button 
+                                  className="w-full h-9 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wider shadow-sm"
+                                  disabled={!row.textResponse && !row.fileAttachment}
+                                  onClick={() => {
+                                    handleEvidenceChange(row.id, 'status', 'Pending Review');
+                                    toast.success('Point sent for review');
+                                  }}
+                                >
+                                  Send for Review
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1266,7 +1291,7 @@ export default function App() {
                           <TableHead className="w-[140px] font-bold text-center">Owner (M/C)</TableHead>
                           <TableHead className="w-[250px] font-bold">Maker Response</TableHead>
                           <TableHead className="w-[150px] font-bold">Maker Remarks</TableHead>
-                          <TableHead className="w-[180px] font-bold text-center">Approval Status</TableHead>
+                          <TableHead className="w-[180px] font-bold text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1317,35 +1342,32 @@ export default function App() {
                             <TableCell className="align-top py-4">
                               {user.role === 'Checker' && selectedSubmission.status === 'Pending Review' ? (
                                 <div className="space-y-3">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <Button 
-                                      size="sm"
-                                      variant={row.status === 'Approved' ? 'default' : 'outline'}
-                                      className={`h-8 font-bold text-[11px] transition-all shadow-sm ${
-                                        row.status === 'Approved' 
-                                          ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' 
-                                          : 'text-slate-400 border-slate-200 hover:border-emerald-200 hover:text-emerald-600 bg-white'
-                                      }`}
-                                      onClick={() => updateReviewRow(row.id, { status: 'Approved' })}
-                                    >
-                                      <CheckCircle2 size={14} className="mr-1.5" /> Approve
-                                    </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant={row.status === 'Rejected' ? 'destructive' : 'outline'}
-                                      className={`h-8 font-bold text-[11px] transition-all shadow-sm ${
-                                        row.status === 'Rejected' 
-                                          ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700' 
-                                          : 'text-slate-400 border-slate-200 hover:border-rose-200 hover:text-rose-600 bg-white'
-                                      }`}
-                                      onClick={() => updateReviewRow(row.id, { status: 'Rejected' })}
-                                    >
-                                      <XCircle size={14} className="mr-1.5" /> Reject
-                                    </Button>
-                                  </div>
+                                  <Button 
+                                    size="sm"
+                                    className={`w-full h-9 font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm ${
+                                      row.status === 'Approved' 
+                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                                        : 'bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-50'
+                                    }`}
+                                    onClick={() => updateReviewRow(row.id, { status: 'Approved' })}
+                                  >
+                                    <CheckCircle2 size={14} className="mr-1.5" /> Approve Audit
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className={`w-full h-9 font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm ${
+                                      row.status === 'Rejected' 
+                                        ? 'bg-rose-600 text-white border-0 hover:bg-rose-700' 
+                                        : 'text-rose-600 border-rose-200 hover:bg-rose-50'
+                                    }`}
+                                    onClick={() => updateReviewRow(row.id, { status: 'Rejected' })}
+                                  >
+                                    <XCircle size={14} className="mr-1.5" /> Reject Audit
+                                  </Button>
                                   <Input 
                                     className="h-8 text-[11px] bg-white border-slate-200 shadow-inner focus:ring-1 focus:ring-indigo-500"
-                                    placeholder="Add feedback..."
+                                    placeholder="Reviewer remarks..."
                                     value={row.checkerRemarks || ''}
                                     onChange={(e) => updateReviewRow(row.id, { checkerRemarks: e.target.value })}
                                   />
@@ -1353,16 +1375,16 @@ export default function App() {
                               ) : (
                                 <div className="space-y-2">
                                   {row.status ? (
-                                    <Badge className={`w-full justify-center py-1 text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                                    <Badge className={`w-full justify-center py-1.5 text-[10px] font-black uppercase tracking-widest border shadow-sm ${
                                       row.status === 'Approved' 
                                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                                         : 'bg-rose-50 text-rose-700 border-rose-200'
                                     }`}>
-                                      {row.status === 'Approved' ? <Check size={12} className="mr-1.5" /> : <X size={12} className="mr-1.5" />}
+                                      {row.status === 'Approved' ? <CheckCircle2 size={12} className="mr-1.5" /> : <XCircle size={12} className="mr-1.5" />}
                                       {row.status}
                                     </Badge>
                                   ) : (
-                                    <div className="flex items-center justify-center gap-2 py-1 px-3 bg-slate-100 rounded text-[10px] text-slate-400 font-bold uppercase tracking-widest border border-slate-200">
+                                    <div className="flex items-center justify-center gap-2 py-1.5 px-3 bg-slate-100 rounded text-[10px] text-slate-400 font-bold uppercase tracking-widest border border-slate-200">
                                       <Clock size={12} /> Pending Review
                                     </div>
                                   )}
