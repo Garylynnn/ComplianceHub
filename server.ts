@@ -1,6 +1,7 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import Database from 'better-sqlite3';
@@ -16,66 +17,79 @@ const __dirname = path.dirname(__filename);
 const JWT_SECRET = process.env.JWT_SECRET || 'compliance-hub-secret-key-iso-27001';
 const PORT = 3000;
 
-const db = new Database('compliance.db');
-
-// Initialize Database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    uid TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL,
-    createdAt TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS submissions (
-    id TEXT PRIMARY KEY,
-    date TEXT NOT NULL,
-    categoryId TEXT NOT NULL,
-    frequency TEXT NOT NULL,
-    makerId TEXT NOT NULL,
-    makerName TEXT NOT NULL,
-    checkerId TEXT,
-    checkerName TEXT,
-    status TEXT NOT NULL,
-    evidence TEXT NOT NULL, -- JSON string
-    checkerComments TEXT,
-    createdAt TEXT NOT NULL,
-    updatedAt TEXT NOT NULL,
-    FOREIGN KEY(makerId) REFERENCES users(uid)
-  );
-
-  CREATE TABLE IF NOT EXISTS audit_logs (
-    id TEXT PRIMARY KEY,
-    timestamp TEXT NOT NULL,
-    userId TEXT NOT NULL,
-    userName TEXT NOT NULL,
-    action TEXT NOT NULL,
-    resourceId TEXT,
-    resourceType TEXT,
-    details TEXT,
-    FOREIGN KEY(userId) REFERENCES users(uid)
-  );
-`);
-
 async function startServer() {
   const app = express();
   app.use(cors());
   app.use(express.json());
 
-  // Bootstrap admin user
+  app.get('/api/test-server', (req, res) => {
+    res.json({ status: 'server-is-up', time: new Date().toISOString() });
+  });
+
+  let db: any;
   try {
-    const adminEmail = 'linekar@zerodha.com';
-    const existingAdmin = db.prepare('SELECT * FROM users WHERE email = ?').get(adminEmail);
-    if (!existingAdmin) {
-      const hashedPassword = await bcrypt.hash('password123', 10);
-      db.prepare('INSERT INTO users (uid, name, email, password, role, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
-        .run('admin-001', 'Admin User', adminEmail, hashedPassword, 'Admin', new Date().toISOString());
-      console.log('Default admin user created: linekar@zerodha.com / password123');
-    }
+    db = new Database('compliance.db');
+    // Initialize Database
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        uid TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS submissions (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        categoryId TEXT NOT NULL,
+        frequency TEXT NOT NULL,
+        makerId TEXT NOT NULL,
+        makerName TEXT NOT NULL,
+        checkerId TEXT,
+        checkerName TEXT,
+        status TEXT NOT NULL,
+        evidence TEXT NOT NULL, -- JSON string
+        checkerComments TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY(makerId) REFERENCES users(uid)
+      );
+
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        timestamp TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        userName TEXT NOT NULL,
+        action TEXT NOT NULL,
+        resourceId TEXT,
+        resourceType TEXT,
+        details TEXT,
+        FOREIGN KEY(userId) REFERENCES users(uid)
+      );
+    `);
+    console.log('Database initialized successfully');
   } catch (err) {
-    console.error('Error bootstrapping admin:', err);
+    console.error('DATABASE INITIALIZATION FAILED:', err);
+    // Continue starting server so at least some API calls can report error,
+    // though most will fail. Or we could exit.
+  }
+
+  // Bootstrap admin user
+  if (db) {
+    try {
+      const adminEmail = 'linekar@zerodha.com';
+      const existingAdmin = db.prepare('SELECT * FROM users WHERE email = ?').get(adminEmail);
+      if (!existingAdmin) {
+        const hashedPassword = await bcrypt.hash('password123', 10);
+        db.prepare('INSERT INTO users (uid, name, email, password, role, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
+          .run('admin-001', 'Admin User', adminEmail, hashedPassword, 'Admin', new Date().toISOString());
+        console.log('Default admin user created: linekar@zerodha.com / password123');
+      }
+    } catch (err) {
+      console.error('Error bootstrapping admin:', err);
+    }
   }
 
   // Middleware to verify JWT
@@ -93,7 +107,8 @@ async function startServer() {
   };
 
   // Auth Routes
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', authenticateToken, async (req: any, res) => {
+    if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Self-registration is disabled. Contact Admin.' });
     console.log('Register request received for:', req.body.email);
     const { name, email, password, role } = req.body;
     try {
@@ -106,10 +121,9 @@ async function startServer() {
 
       // Log registration
       const logStmt = db.prepare('INSERT INTO audit_logs (id, timestamp, userId, userName, action, resourceId, resourceType, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-      logStmt.run(Math.random().toString(36).substr(2, 9), createdAt, uid, name, 'USER_REGISTERED', uid, 'User', `User registered with role: ${role}`);
+      logStmt.run(Math.random().toString(36).substr(2, 9), createdAt, uid, name, 'USER_REGISTERED', uid, 'User', `Admin registered user with role: ${role}`);
 
-      const token = jwt.sign({ uid, email, role, name }, JWT_SECRET);
-      res.json({ token, user: { uid, name, email, role, createdAt } });
+      res.json({ success: true, user: { uid, name, email, role, createdAt } });
     } catch (error: any) {
       if (error.message.includes('UNIQUE constraint failed')) {
         return res.status(400).json({ error: 'Email already in use' });
@@ -249,8 +263,20 @@ async function startServer() {
     const { uid, name, role } = req.user;
 
     try {
+      const submission = db.prepare('SELECT * FROM submissions WHERE id = ?').get(id) as any;
+      if (!submission) return res.status(404).json({ error: 'Submission not found' });
+
+      // SEGREGATION OF DUTIES CHECK
+      if (role === 'Checker' || role === 'Admin' || role === 'Agent') {
+        if (submission.makerId === uid) {
+          return res.status(403).json({ 
+            error: 'Segregation of Duties Violation: You cannot review an audit that you personally submitted as a Maker.' 
+          });
+        }
+      }
+
       const now = new Date().toISOString();
-      if (role === 'Checker' || role === 'Admin') {
+      if (role === 'Checker' || role === 'Admin' || role === 'Agent') {
         let query = 'UPDATE submissions SET status = ?, checkerComments = ?, checkerId = ?, checkerName = ?, updatedAt = ?';
         let params = [status, checkerComments, uid, name, now];
         if (evidence) {
@@ -277,7 +303,7 @@ async function startServer() {
 
   // Audit Logs
   app.get('/api/audit-logs', authenticateToken, (req: any, res) => {
-    if (req.user.role !== 'Checker' && req.user.role !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+    if (req.user.role !== 'Checker' && req.user.role !== 'Admin' && req.user.role !== 'Agent') return res.status(403).json({ error: 'Forbidden' });
     try {
       const logs = db.prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 100').all();
       res.json(logs);
@@ -334,7 +360,9 @@ async function startServer() {
   });
 
   // Vite setup
+  console.log(`NODE_ENV is: ${process.env.NODE_ENV}`);
   if (process.env.NODE_ENV !== 'production') {
+    console.log('Starting Vite in middleware mode...');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -342,14 +370,23 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    if (fs.existsSync(distPath)) {
+      console.log('Serving production build from dist...');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    } else {
+      console.warn('WARNING: Production mode enabled but "dist" directory not found. Falling back to simple message.');
+      app.get('*', (req, res) => {
+        res.status(500).send('Application build missing. Please run "npm run build" first.');
+      });
+    }
   }
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log('Compliance Hub Version: 2.1 - Action Column Update');
   });
 }
 

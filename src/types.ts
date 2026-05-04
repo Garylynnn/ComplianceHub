@@ -21,7 +21,8 @@ export interface EvidenceRow {
   textResponse: string;
   fileAttachment?: string;
   remarks: string;
-  status?: 'Draft' | 'Pending Review' | 'Approved' | 'Rejected' | 'N/A';
+  status: 'Draft' | 'Pending Review' | 'Approved' | 'Rejected' | 'N/A';
+  makerVerdict: 'Pass' | 'Fail';
   maker?: string;
   checker?: string;
   checkerRemarks?: string;
@@ -43,7 +44,7 @@ export interface AuditSubmission {
   updatedAt: string;
 }
 
-export type Role = 'Maker' | 'Checker' | 'Admin';
+export type Role = 'Maker' | 'Checker' | 'Admin' | 'Agent';
 
 export interface User {
   uid: string;

@@ -22,9 +22,11 @@ export const COMPLIANCE_REQUIREMENTS: ComplianceRequirement[] = [
   { id: 'uar-8', categoryId: 'uar', description: 'Pritunl: VPN user lists and "Two-Step Authentication" enforcement.', maker: 'Gani', checker: 'Linekar' },
   
   // Patch Management
-  { id: 'pm-1', categoryId: 'pm', description: 'Gitlab links for latest patch deployments.' },
-  { id: 'pm-2', categoryId: 'pm', description: 'SOP upload for patch testing procedures.' },
-  { id: 'pm-3', categoryId: 'pm', description: 'Impact analysis report for critical patches.' },
+  { id: 'pm-1', categoryId: 'pm', description: 'Patch Management Policy & SOP (Clause 3x): Definitions, SLAs, and Lifecycle procedures.', maker: 'Surya.K', checker: 'Shruthi.sb' },
+  { id: 'pm-2', categoryId: 'pm', description: 'Monthly Patch Register (Clause 3y): Cisco, Sophos, AlmaLinux, and FreeIPA updates tracking.', maker: 'Ajith.kumar.thala', checker: 'Surya.k' },
+  { id: 'pm-3', categoryId: 'pm', description: 'Testing & Impact Analysis (Clause 12k): UAT reports, risk assessment, and rollback plans.', maker: 'Gani', checker: 'Linekar' },
+  { id: 'pm-4', categoryId: 'pm', description: 'Change Management Evidence: CAB approvals and mapping to patch tickets.', maker: 'fatah.khan', checker: 'Vinod.S' },
+  { id: 'pm-5', categoryId: 'pm', description: 'Monitoring & Asset Coverage: Dashboard exports and coverage across OS/Network/Firewall.', maker: 'Rakshith', checker: 'Fatah.khan' },
   
   // Physical Security
   { id: 'ps-1', categoryId: 'ps', description: 'CCTV Backup Policy and verification logs.' },
