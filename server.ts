@@ -359,6 +359,67 @@ async function startServer() {
     }
   });
 
+  app.patch('/api/users/:uid', authenticateToken, async (req: any, res) => {
+    if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+    const { uid } = req.params;
+    const { role } = req.body;
+
+    try {
+      db.prepare('UPDATE users SET role = ? WHERE uid = ?').run(role, uid);
+      
+      // Log user update
+      db.prepare(`
+        INSERT INTO audit_logs (id, timestamp, userId, userName, action, resourceId, resourceType, details)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        Math.random().toString(36).substr(2, 9),
+        new Date().toISOString(),
+        req.user.uid,
+        req.user.name,
+        'ADMIN_USER_UPDATED',
+        uid,
+        'User',
+        `Admin updated user: ${uid} with new role: ${role}`
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update user' });
+    }
+  });
+
+  app.delete('/api/users/:uid', authenticateToken, async (req: any, res) => {
+    if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+    const { uid } = req.params;
+
+    if (uid === req.user.uid) {
+      return res.status(400).json({ error: 'You cannot delete yourself.' });
+    }
+
+    try {
+      db.prepare('DELETE FROM users WHERE uid = ?').run(uid);
+      
+      // Log user deletion
+      db.prepare(`
+        INSERT INTO audit_logs (id, timestamp, userId, userName, action, resourceId, resourceType, details)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        Math.random().toString(36).substr(2, 9),
+        new Date().toISOString(),
+        req.user.uid,
+        req.user.name,
+        'ADMIN_USER_DELETED',
+        uid,
+        'User',
+        `Admin deleted user: ${uid}`
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete user' });
+    }
+  });
+
   // Vite setup
   console.log(`NODE_ENV is: ${process.env.NODE_ENV}`);
   if (process.env.NODE_ENV !== 'production') {

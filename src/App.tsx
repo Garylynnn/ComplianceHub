@@ -20,7 +20,9 @@ import {
   ChevronRight,
   TrendingUp,
   AlertCircle,
-  Paperclip
+  Paperclip,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -204,6 +206,7 @@ export default function App() {
   const [selectedCategoryId, setSelectedCategoryId] = useState(COMPLIANCE_CATEGORIES[0].id);
   const [frequency, setFrequency] = useState('Monthly');
   const [newUserRole, setNewUserRole] = useState('Maker');
+  const [editingUser, setEditingUser] = useState<UserType | null>(null);
 
   useEffect(() => {
     async function verify() {
@@ -543,6 +546,7 @@ export default function App() {
                     <TableHead className="text-[10px] font-bold uppercase tracking-widest">Email</TableHead>
                     <TableHead className="text-[10px] font-bold uppercase tracking-widest">Role</TableHead>
                     <TableHead className="text-[10px] font-bold uppercase tracking-widest">Joined</TableHead>
+                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -557,6 +561,42 @@ export default function App() {
                       </TableCell>
                       <TableCell className="text-slate-400 text-xs">
                         {u.createdAt ? format(new Date(u.createdAt), 'dd MMM yyyy') : 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                           <Button 
+                             variant="ghost" 
+                             size="sm" 
+                             className="h-8 w-8 p-0 text-slate-400 hover:text-indigo-600"
+                             onClick={() => setEditingUser(u)}
+                           >
+                             <Edit size={14} />
+                           </Button>
+                           <Button 
+                             variant="ghost" 
+                             size="sm" 
+                             className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600"
+                             onClick={async () => {
+                               if (window.confirm(`Are you sure you want to delete user ${u.name}?`)) {
+                                 try {
+                                   const res = await fetch(`/api/users/${u.uid}`, {
+                                     method: 'DELETE',
+                                     headers: { 'Authorization': `Bearer ${token}` }
+                                   });
+                                   if (res.ok) {
+                                     toast.success('User deleted');
+                                     fetchData();
+                                   } else {
+                                     const err = await res.json();
+                                     toast.error(err.error || 'Failed to delete');
+                                   }
+                                 } catch (err) { toast.error('Delete operation failed'); }
+                               }
+                             }}
+                           >
+                             <Trash2 size={14} />
+                           </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1081,6 +1121,66 @@ export default function App() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(o) => !o && setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User Permissions</DialogTitle>
+            <DialogDescription>
+              Modify the role and access level for {editingUser?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Full Name</Label>
+              <Input value={editingUser?.name} disabled className="bg-slate-50" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={editingUser?.email} disabled className="bg-slate-50" />
+            </div>
+            <div className="space-y-2">
+              <Label>System Role</Label>
+              <Select 
+                name="edit-u-role" 
+                defaultValue={editingUser?.role} 
+                onValueChange={async (newRole) => {
+                  if (!editingUser) return;
+                  try {
+                    const res = await fetch(`/api/users/${editingUser.uid}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                      body: JSON.stringify({ role: newRole })
+                    });
+                    if (res.ok) {
+                      toast.success('Role updated successfully');
+                      setEditingUser(null);
+                      fetchData();
+                    } else {
+                      const err = await res.json();
+                      toast.error(err.error);
+                    }
+                  } catch (err) { toast.error('Failed to update role'); }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={editingUser?.role} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Maker">Maker (Compliance Agent)</SelectItem>
+                  <SelectItem value="Checker">Checker (Compliance Auditor)</SelectItem>
+                  <SelectItem value="Agent">IT Agent (Maker + Checker)</SelectItem>
+                  <SelectItem value="Admin">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setEditingUser(null)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
